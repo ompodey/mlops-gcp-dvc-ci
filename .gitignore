@@ -1,0 +1,8 @@
+# Ignore Python virtual environment
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+/model.joblib
+/metrics.csv

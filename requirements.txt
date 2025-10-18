@@ -1,0 +1,5 @@
+dvc[gdrive]
+scikit-learn
+pandas
+joblib
+dvc-gs
