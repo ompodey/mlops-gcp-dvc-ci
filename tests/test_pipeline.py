@@ -8,7 +8,7 @@ import mlflow
 import mlflow.sklearn
 
 
-MLFLOW_TRACKING_URI = "http://127.0.0.1:8100"
+MLFLOW_TRACKING_URI = "http://34.70.222.183:8100"
 MODEL_NAME = "IrisClassifier"
 
 def load_and_fix_metrics(file_path="metrics.csv"):
