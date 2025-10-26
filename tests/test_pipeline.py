@@ -80,9 +80,7 @@ def test_model_evaluation(data, model):
     print("\n Evaluation Metrics Sample:")
     print(sample_df.to_string(index=False))
     
-    train_metrics =load_and_fix_metrics("metrics.csv")
-    training_acc = train_metrics['accuracy'].values[0]
-    print(f"\n Training Accuracy (from metrics.csv): {training_acc}")
+  
     print(f" Test Accuracy (current run): {test_acc}")
 
     assert test_acc > 0.7, "Test accuracy too low."
