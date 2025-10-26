@@ -45,9 +45,13 @@ jobs:
       - name: Pull DVC Data & Model
         run: dvc pull
 
-      # 7. Run tests
-      - name: Run Test Pipeline
-        run: pytest tests/test_pipeline.py
+      # 7. Run tests (Fetch model from MLflow)
+      - name: Run Test Pipeline (Using MLflow Registry)
+        env:
+          MLFLOW_TRACKING_URI: http://127.0.0.1:8100
+        run: |
+          echo "Starting sanity tests using model from MLflow Model Registry"
+          pytest tests/test_pipeline.py -v
       # 7. Setup iterative CML
       - name: Setup CML
         uses: iterative/setup-cml@v2
