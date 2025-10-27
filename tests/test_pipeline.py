@@ -4,6 +4,12 @@ import pytest
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 import os
+import mlflow
+import mlflow.sklearn
+
+
+MLFLOW_TRACKING_URI = "http://34.60.145.174:8100"
+MODEL_NAME = "Iris-DT-Classifier"
 
 def load_and_fix_metrics(file_path="metrics.csv"):
     if not os.path.exists(file_path):
@@ -34,8 +40,20 @@ def data():
 
 @pytest.fixture
 def model():
-    mdl=joblib.load("model.joblib")
-    return mdl
+    """Fetch the latest registered model from MLflow Model Registry"""
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+    print(f"Using MLflow Tracking URI: {MLFLOW_TRACKING_URI}")
+
+    client = mlflow.tracking.MlflowClient()
+    latest = client.get_latest_versions(MODEL_NAME, stages=["Production", "None"])
+    if not latest:
+        raise Exception(f"No model found in MLflow registry for {MODEL_NAME}")
+
+    model_uri = f"models:/{MODEL_NAME}/{latest[0].version}"
+    print(f"Fetching model from MLflow registry: {model_uri}")
+
+    model = mlflow.sklearn.load_model(model_uri)
+    return model
 
 #Sanity
 def test_data_sanity(data):
@@ -62,10 +80,7 @@ def test_model_evaluation(data, model):
     print("\n Evaluation Metrics Sample:")
     print(sample_df.to_string(index=False))
     
-    train_metrics =load_and_fix_metrics("metrics.csv")
-    training_acc = train_metrics['accuracy'].values[0]
-    print(f"\n Training Accuracy (from metrics.csv): {training_acc}")
+  
     print(f" Test Accuracy (current run): {test_acc}")
 
     assert test_acc > 0.7, "Test accuracy too low."
-
