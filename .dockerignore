@@ -1,0 +1,11 @@
+# ---------- .dockerignore ----------
+__pycache__/
+*.pyc
+*.pyo
+*.log
+.git
+.dvc
+.dvc/cache
+.env
+tests/
+.vscode/
