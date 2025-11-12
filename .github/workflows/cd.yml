@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - dev
+      - week6_kubernetes
   workflow_dispatch:
 
 jobs:
