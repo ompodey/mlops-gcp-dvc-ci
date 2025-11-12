@@ -44,6 +44,12 @@ def predict():
     except KeyError as e:
         return jsonify({"error": f"Missing columns. Expected: {feature_cols}"}), 400
 
+    # 🔹 Artificial CPU work to trigger autoscaling
+    for _ in range(2_000_000):
+        math.sqrt(12345.6789)
+
+
+
     preds = model.predict(X)
     return jsonify({"predictions": preds.tolist()})
 

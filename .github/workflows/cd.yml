@@ -6,6 +6,7 @@ on:
       - main
       - dev
       - week6_kubernetes
+      - week7_stress
   workflow_dispatch:
 
 jobs:
@@ -60,7 +61,6 @@ jobs:
       - name: Deploy to Kubernetes (GKE)
         env:
           PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-          REGION: ${{ secrets.GCP_REGION }}
         run: |
           # Replace placeholder in manifest with actual project id
           sed -i "s|\${PROJECT_ID}|$PROJECT_ID|g" k8s_deployment.yaml
@@ -68,12 +68,48 @@ jobs:
           echo "Applying Kubernetes deployment..."
           kubectl apply -f k8s_deployment.yaml
 
-          echo "Waiting for rollout..."
-          kubectl rollout status deployment/iris-api-deployment
+          echo "Waiting for rollout (90s timeout)..."
+          kubectl rollout status deployment/iris-api-deployment --timeout=90s
 
-      # 8️⃣ Verify Deployment and Expose Service
+      # 8️⃣ Verify Deployed Service
       - name: Verify Deployed Service
         run: |
           echo "Checking running pods and service status..."
           kubectl get pods -o wide
           kubectl get svc iris-api-service -o wide
+
+      # 9️⃣ Wait for LoadBalancer External IP
+      - name: Wait for LoadBalancer External IP
+        run: |
+          echo "Waiting for external IP..."
+          for i in {1..30}; do
+            IP=$(kubectl get svc iris-api-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            if [ -n "$IP" ]; then
+              echo "EXTERNAL_IP=$IP" >> $GITHUB_ENV
+              echo "External IP: $IP"
+              break
+            fi
+            echo "External IP not ready yet, retrying..."
+            sleep 10
+          done
+
+      # 10️⃣ Install wrk
+      - name: Install wrk
+        run: sudo apt-get update && sudo apt-get install -y wrk
+
+      # 11️⃣ Create POST script for wrk
+      - name: Create POST script
+        run: |
+          cat > post.lua <<'EOF'
+          wrk.method = "POST"
+          wrk.body   = '{"sepal_length":5.1,"sepal_width":3.5,"petal_length":1.4,"petal_width":0.2}'
+          wrk.headers["Content-Type"] = "application/json"
+          EOF
+
+      # 12️⃣ Run stress test (>1000 requests)
+      - name: Run stress test (>1000 requests)
+        env:
+          EXTERNAL_IP: ${{ env.EXTERNAL_IP }}
+        run: |
+          echo "Running wrk against http://$EXTERNAL_IP/predict"
+          wrk -t4 -c1000 -d20s -s post.lua http://$EXTERNAL_IP/predict | tee wrk_output.txt
