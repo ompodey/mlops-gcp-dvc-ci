@@ -53,7 +53,8 @@ jobs:
         uses: google-github-actions/get-gke-credentials@v1
         with:
           cluster_name: iris-cluster
-          location: ${{ secrets.GCP_REGION }}
+          location: us-central1-a
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
 
       # 7️⃣ Deploy to GKE
       - name: Deploy to Kubernetes (GKE)
