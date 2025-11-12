@@ -1,0 +1,77 @@
+name: IRIS CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'   # required for GCP auth OIDC (optional enhancement)
+
+    steps:
+      # 1️⃣ Checkout repo
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+
+      # 2️⃣ Setup Google Cloud authentication
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      # 3️⃣ Setup gcloud SDK
+      - name: Setup gcloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          export_default_credentials: true
+
+      # 4️⃣ Configure Docker authentication for Artifact Registry
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
+
+      # 5️⃣ Build & Push Docker image to Artifact Registry
+      - name: Build and Push Docker Image
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          REGION: ${{ secrets.GCP_REGION }}
+        run: |
+          IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/iris-api-repo/iris-api:latest"
+          echo "Building Docker image: $IMAGE"
+          docker build -t $IMAGE .
+          docker push $IMAGE
+
+      # 6️⃣ Get GKE cluster credentials
+      - name: Get GKE Credentials
+        uses: google-github-actions/get-gke-credentials@v1
+        with:
+          cluster_name: iris-cluster
+          location: ${{ secrets.GCP_REGION }}
+
+      # 7️⃣ Deploy to GKE
+      - name: Deploy to Kubernetes (GKE)
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          REGION: ${{ secrets.GCP_REGION }}
+        run: |
+          # Replace placeholder in manifest with actual project id
+          sed -i "s|\${PROJECT_ID}|$PROJECT_ID|g" k8s_deployment.yaml
+
+          echo "Applying Kubernetes deployment..."
+          kubectl apply -f k8s_deployment.yaml
+
+          echo "Waiting for rollout..."
+          kubectl rollout status deployment/iris-api-deployment
+
+      # 8️⃣ Verify Deployment and Expose Service
+      - name: Verify Deployed Service
+        run: |
+          echo "Checking running pods and service status..."
+          kubectl get pods -o wide
+          kubectl get svc iris-api-service -o wide
